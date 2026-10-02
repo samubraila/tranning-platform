@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#0a0c0f"/>
+  <g fill="#c6f432">
+    <rect x="92" y="160" width="40" height="124" rx="13"/>
+    <rect x="140" y="128" width="50" height="188" rx="16"/>
+    <rect x="186" y="203" width="140" height="38" rx="9"/>
+    <rect x="322" y="128" width="50" height="188" rx="16"/>
+    <rect x="380" y="160" width="40" height="124" rx="13"/>
+  </g>
+  <text x="256" y="420" text-anchor="middle" font-family="Segoe UI, Arial, Helvetica, sans-serif" font-weight="900" font-size="80" letter-spacing="-2" fill="#f2f4f7">FORGE<tspan fill="#c6f432">52</tspan></text>
+</svg>

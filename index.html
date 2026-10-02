@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>FORGE52 – Trainingsplan</title>
+  <meta name="description" content="Dein professioneller 52-Wochen-Trainingsplan für McFit – mit Übungsbibliothek, Trainings-Tracker und Akademie." />
+  <meta name="theme-color" content="#0a0c0f" />
+  <meta name="color-scheme" content="dark light" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="FORGE52" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="icon" href="./assets/icons/icon.svg" type="image/svg+xml" />
+  <link rel="icon" href="./assets/icons/icon-192.png" type="image/png" sizes="192x192" />
+  <link rel="apple-touch-icon" href="./assets/icons/apple-touch-icon.png" />
+  <link rel="stylesheet" href="./css/app.css" />
+  <script>
+    // Theme vor dem ersten Zeichnen setzen (kein Aufblitzen)
+    try {
+      var s = JSON.parse(localStorage.getItem('forge52.v1') || '{}').settings || {};
+      if (s.theme === 'dark' || s.theme === 'light') document.documentElement.setAttribute('data-theme', s.theme);
+    } catch (e) {}
+  </script>
+</head>
+<body>
+  <main id="view" aria-live="polite"></main>
+  <div id="timerbar" hidden></div>
+  <button id="live-pill" class="live-pill" hidden aria-label="Laufendes Training fortsetzen"></button>
+  <nav class="tabbar" aria-label="Hauptnavigation"><div class="inner"></div></nav>
+  <div id="sheet-root"></div>
+  <div id="toast-root" aria-live="assertive"></div>
+  <noscript><p style="padding:24px;font-family:sans-serif">Bitte JavaScript aktivieren, um FORGE52 zu nutzen.</p></noscript>
+  <script type="module" src="./js/main.js"></script>
+</body>
+</html>
