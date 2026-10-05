@@ -17,7 +17,7 @@ export const WARMUP = [
 // item: { ex, sets, reps, rest (Sek.), note?, ss? (Supersatz-Gruppe), finisher? }
 const W = (name, focus, items) => ({ name, focus, items });
 
-export const WORKOUTS = {
+export const WORKOUTS = Object.assign(Object.create(null), {
   // Phase 1 – Fundament
   'p1-a': W('Ganzkörper A', 'Beinpresse · Brust · Latzug', [
     { ex: 'beinpresse', sets: 3, reps: '12–15', rest: 120 },
@@ -213,7 +213,7 @@ export const WORKOUTS = {
     { ex: 'beinheben', sets: 3, reps: '12', rest: 60 },
     { ex: 'laufband-steigung', sets: 1, reps: '15', rest: 0, finisher: true, note: '10–12 % Steigung, 5–5,5 km/h.' },
   ]),
-};
+});
 
 // ───────────────────────── Phasen ─────────────────────────
 // Wochen-Typen: load = Belastung, deload = Entlastung, test = Leistungstest

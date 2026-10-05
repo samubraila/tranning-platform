@@ -836,7 +836,8 @@ export const EXERCISES = [
   }),
 ];
 
-export const EX_BY_ID = Object.fromEntries(EXERCISES.map((e) => [e.id, e]));
+// Ohne Prototyp, damit Schlüssel wie "constructor" oder "__proto__" (z. B. aus URLs oder Backups) nichts finden
+export const EX_BY_ID = Object.assign(Object.create(null), Object.fromEntries(EXERCISES.map((e) => [e.id, e])));
 
 export function exerciseGroups(ex) {
   return MUSCLE_GROUPS.filter((g) => g.muscles.some((m) => ex.muscles.includes(m))).map((g) => g.id);

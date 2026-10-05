@@ -146,5 +146,7 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   });
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js').catch((e) => console.warn('Service Worker nicht registriert', e));
+    // Offline-Daten prüfen und bei Bedarf neu laden
+    navigator.serviceWorker.ready.then((reg) => { if (navigator.onLine) reg.active?.postMessage('ensure-cache'); }).catch(() => {});
   });
 }

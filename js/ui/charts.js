@@ -1,7 +1,12 @@
 // Schlanke SVG-Diagramme: eine Datenreihe, Hairline-Raster, Tooltip bei Hover/Tippen, Tabellenansicht.
 import { esc, fmtNum } from '../utils.js';
 
-const W = 340;
+// Zeichenbreite = tatsächliche Kartenbreite – so bleibt die Schrift auf jedem Gerät gleich groß
+function chartWidth() {
+  const view = document.getElementById('view');
+  const w = (view?.clientWidth || window.innerWidth || 390) - 32 - 38; // Seitenrand + Kartenpolster
+  return Math.max(240, Math.min(560, Math.round(w)));
+}
 
 function niceMax(v) {
   if (v <= 0) return 1;
@@ -28,6 +33,7 @@ function table(rows, head) {
 // data: [{ label, value, tip }]
 export function barChart(data, { height = 170, unit = '', labelEvery = 0, valueFmt = fmtNum, tableFmt = fmtNum, tableHead = ['Woche', 'Wert'] } = {}) {
   if (!data.length || data.every((d) => !d.value)) return `<div class="chart-empty">Noch keine Daten – nach deinem ersten Training erscheint hier dein Verlauf.</div>`;
+  const W = chartWidth();
   const pad = { l: 38, r: 6, t: 18, b: 22 };
   const ih = height - pad.t - pad.b;
   const iw = W - pad.l - pad.r;
@@ -83,7 +89,8 @@ export function lineChart(points, { height = 170, unit = '', valueFmt = fmtNum, 
   if (points.length < 2) {
     return `<div class="chart-empty">${points.length === 1 ? `Erster Wert: <b>${esc(valueFmt(points[0].value))} ${esc(unit)}</b> – ab dem zweiten Eintrag siehst du eine Kurve.` : 'Noch keine Daten.'}</div>`;
   }
-  const pad = { l: 38, r: 30, t: 16, b: 22 };
+  const W = chartWidth();
+  const pad = { l: 38, r: 34, t: 16, b: 22 };
   const ih = height - pad.t - pad.b;
   const iw = W - pad.l - pad.r;
   const vals = points.map((p) => p.value);
@@ -120,7 +127,7 @@ export function lineChart(points, { height = 170, unit = '', valueFmt = fmtNum, 
       <path class="area" d="${area}"/>
       <path class="line" d="${d}"/>
       <circle class="dot" cx="${x(points.length - 1)}" cy="${y(last.value)}" r="4.5"/>
-      <text class="val" x="${x(points.length - 1) + 8}" y="${y(last.value) + 4}">${esc(valueFmt(last.value))}</text>
+      <text class="val" x="${x(points.length - 1) + 8}" y="${Math.max(pad.t + 8, Math.min(y(last.value) + 4, pad.t + ih - 4))}">${esc(valueFmt(last.value))}</text>
       <g class="hl" style="opacity:0"><line x1="0" x2="0" y1="${pad.t}" y2="${pad.t + ih}"/><circle cx="0" cy="0" r="5"/></g>
       <g>${hits}</g>
     </svg>

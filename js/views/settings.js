@@ -149,19 +149,32 @@ on('unreplace', (el) => {
 const pad = (n) => String(n).padStart(2, '0');
 const icsTime = (d) => `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
 const icsText = (t) => String(t).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
-// Zeilen nach RFC 5545 auf max. 75 Zeichen umbrechen (Folgezeilen beginnen mit Leerzeichen)
+// Zeilen nach RFC 5545 auf max. 75 Bytes (UTF-8) umbrechen, ohne ein Zeichen zu teilen.
+// Folgezeilen beginnen mit einem Leerzeichen.
+const utf8Len = (ch) => new TextEncoder().encode(ch).length;
 function icsFold(line) {
   const out = [];
-  let rest = line;
-  while (rest.length > 70) { out.push(rest.slice(0, 70)); rest = ' ' + rest.slice(70); }
-  out.push(rest);
+  let cur = '';
+  let bytes = 0;
+  for (const ch of line) {
+    const b = utf8Len(ch);
+    if (bytes + b > 74) {
+      out.push(cur);
+      cur = ' ';
+      bytes = 1;
+    }
+    cur += ch;
+    bytes += b;
+  }
+  out.push(cur);
   return out.join('\r\n');
 }
 
 on('ics-export', () => {
   const [hh, mm] = (document.getElementById('ics-time')?.value || '18:00').split(':').map(Number);
   const weeks = Number(document.getElementById('ics-weeks')?.value) || 12;
-  const cw = Math.max(1, currentWeek());
+  // Vor Planbeginn (Countdown) ab der Startwoche exportieren, nicht ab Woche 1
+  const cw = currentWeek() || store.state.settings.startWeek || 1;
   if (cw > TOTAL_WEEKS) { toast('Dein Trainingsjahr ist abgeschlossen', 'info'); return; }
   const today = toISO(new Date());
   const appUrl = location.origin + location.pathname;
@@ -291,7 +304,8 @@ onChange('import-file', async (el) => {
   try {
     if (file.size > 5 * 1024 * 1024) throw new Error('size');
     const data = JSON.parse(await file.text());
-    if (!data || typeof data !== 'object' || Array.isArray(data) || !Array.isArray(data.sessions) || typeof data.settings !== 'object' || !data.settings) throw new Error('format');
+    if (!data || typeof data !== 'object' || Array.isArray(data) || !Array.isArray(data.sessions)
+      || !data.settings || typeof data.settings !== 'object' || Array.isArray(data.settings)) throw new Error('format');
     const clean = sanitize(data);
     const dropped = data.sessions.length - clean.sessions.length;
     const ok = await confirmDialog({

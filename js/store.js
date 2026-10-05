@@ -34,7 +34,10 @@ export function defaults() {
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 const SAFE_ID = /^[A-Za-z0-9_-]{1,64}$/;
-const str = (v, max = 200) => (typeof v === 'string' ? v.slice(0, max) : '');
+// Texte: Steuer- und Richtungszeichen entfernen (Zeilenumbruch und Tab bleiben erhalten)
+const CTRL = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F‪-‮⁦-⁩]/g;
+const str = (v, max = 200) => (typeof v === 'string' ? v.replace(CTRL, '').slice(0, max) : '');
+const DAY_MS = 86400000;
 const int = (v, min, max, def) => (Number.isInteger(v) && v >= min && v <= max ? v : def);
 const bool = (v, def) => (typeof v === 'boolean' ? v : def);
 const validDay = (v) => typeof v === 'string' && ISO_DAY.test(v) && !Number.isNaN(parseISO(v).getTime()) && toISO(parseISO(v)) === v;
@@ -86,10 +89,13 @@ function cleanSession(s, { active = false } = {}) {
     items: Array.isArray(s.items) ? s.items.slice(0, 40).map(cleanItem).filter(Boolean) : [],
   };
   if (active) {
-    out.startedAt = Number.isFinite(s.startedAt) ? s.startedAt : Date.now();
+    // Laufendes Training: Startzeit muss plausibel sein (höchstens 2 Tage alt, nicht in der Zukunft)
+    const now = Date.now();
+    out.startedAt = Number.isFinite(s.startedAt) && s.startedAt <= now + 60000 && s.startedAt >= now - 2 * DAY_MS ? s.startedAt : now;
     return out;
   }
-  if (typeof s.date !== 'string' || Number.isNaN(Date.parse(s.date))) return null;
+  const t = typeof s.date === 'string' ? Date.parse(s.date) : NaN;
+  if (!Number.isFinite(t) || t < Date.UTC(2000, 0, 1) || t > Date.now() + 2 * DAY_MS) return null;
   out.date = new Date(s.date).toISOString();
   out.duration = int(Math.round(Number(s.duration) || 0), 0, 86400, 0);
   out.prs = Array.isArray(s.prs)
@@ -106,8 +112,9 @@ function cleanSession(s, { active = false } = {}) {
 function cleanDated(list, fields) {
   if (!Array.isArray(list)) return [];
   const byDate = new Map();
+  const latest = toISO(new Date(Date.now() + DAY_MS)); // keine Einträge in der Zukunft
   for (const e of list) {
-    if (!isObj(e) || !validDay(e.date)) continue;
+    if (!isObj(e) || !validDay(e.date) || e.date > latest || e.date < '2000-01-01') continue;
     const row = { date: e.date };
     let any = false;
     for (const [k, min, max] of fields) {

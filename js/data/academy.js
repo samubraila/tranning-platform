@@ -398,7 +398,7 @@ export const LESSONS = [
   },
 ];
 
-export const LESSON_BY_ID = Object.fromEntries(LESSONS.map((l) => [l.id, l]));
+export const LESSON_BY_ID = Object.assign(Object.create(null), Object.fromEntries(LESSONS.map((l) => [l.id, l])));
 
 export const TIPS = [
   'Notiere dir bei jeder Maschine deine Sitzposition – das spart dir jedes Mal Minuten.',

@@ -1,6 +1,6 @@
 // FORGE52 Service Worker – macht die App offline nutzbar.
 // Bei Änderungen an Dateien die Version erhöhen, damit Handys die neue Version laden.
-const VERSION = 'forge52-v1.1.0';
+const VERSION = 'forge52-v1.1.1';
 const PREFIX = 'forge52-';
 const ASSETS = [
   './',
@@ -47,6 +47,18 @@ self.addEventListener('activate', (e) => {
       .then((keys) => Promise.all(keys.filter((k) => k.startsWith(PREFIX) && k !== VERSION).map((k) => caches.delete(k))))
       .then(() => self.clients.claim()),
   );
+});
+
+// Selbstheilung: Hat eine andere App auf derselben Domain unseren Cache gelöscht,
+// lädt die App ihn beim nächsten Start (online) automatisch neu.
+async function ensureCache() {
+  const cache = await caches.open(VERSION);
+  const keys = await cache.keys();
+  if (keys.length >= ASSETS.length) return;
+  await cache.addAll(ASSETS.map((u) => new Request(u, { cache: 'reload' })));
+}
+self.addEventListener('message', (e) => {
+  if (e.data === 'ensure-cache') e.waitUntil(ensureCache().catch(() => {}));
 });
 
 // Stale-while-revalidate: sofort aus dem Cache, im Hintergrund aktualisieren

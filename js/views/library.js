@@ -53,7 +53,7 @@ export const libraryView = {
   tab: 'library',
   render() {
     return `<header class="topbar"><div class="titles"><h1 class="page-title">Übungen</h1><p class="page-sub">${EXERCISES.length} Übungen für McFit – Geräte, Kabel & Freihantel</p></div></header>
-      <div class="search"><span>${icon('search', 18)}</span><input class="input" type="search" placeholder="Übung, Muskel oder Gerät suchen" value="${esc(filter.q)}" data-input="lib-search" aria-label="Suchen" /></div>
+      <div class="search"><span>${icon('search', 18)}</span><input class="input" type="search" placeholder="Übung oder Muskel suchen" value="${esc(filter.q)}" data-input="lib-search" aria-label="Suchen" /></div>
       <div class="filter-scroll mt-12" role="group" aria-label="Muskelgruppe">
         ${[{ id: 'alle', name: 'Alle' }, ...MUSCLE_GROUPS].map((g) => `<button class="filter-chip ${filter.group === g.id ? 'on' : ''}" data-action="lib-group" data-g="${g.id}">${esc(g.name)}</button>`).join('')}
       </div>

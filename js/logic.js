@@ -43,10 +43,16 @@ export function setStartForPhase(phaseNum, baseMonday = mondayOf(new Date())) {
 const cycleOf = (s) => s.cycle || 1;
 export const currentCycle = () => S().settings.cycle || 1;
 
-// Ein Training zählt nur für eine Planwoche, wenn es nicht vor deren Beginn absolviert wurde.
-// So bleibt eine Woche offen, wenn der Plan zurückgesetzt wird („Woche wiederholen“).
+// Welche Trainings zählen für eine Planwoche?
+// - vergangene Wochen: alle (so bleibt der Verlauf erhalten, wenn der Plan verschoben wird)
+// - aktuelle Woche: nur Trainings ab deren Beginn – „Woche wiederholen“ startet wirklich offen
+// - künftige Wochen: auch bis zu 7 Tage vorgezogene Trainings (z. B. während des Countdowns)
 function countsFor(s, week) {
-  return toISO(new Date(s.date)) >= toISO(weekStartDate(week));
+  const cw = currentWeek();
+  if (week < cw) return true;
+  const start = weekStartDate(week);
+  const min = week > cw ? addDays(start, -7) : start;
+  return toISO(new Date(s.date)) >= toISO(min);
 }
 
 export function sessionsInWeek(week) {
