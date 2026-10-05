@@ -8,41 +8,55 @@ import { ACHIEVEMENTS, LESSONS, XP, LEVELS } from './data/academy.js';
 const S = () => store.state;
 
 // ───── Woche & Termine ─────
+// settings.startDate = Montag, an dem Planwoche settings.startWeek beginnt.
 export function planStart() {
   return parseISO(S().settings.startDate);
 }
+const startWeek = () => S().settings.startWeek || 1;
 
 // 0 = Plan hat noch nicht begonnen, 1–52 = laufend, 53 = abgeschlossen
 export function currentWeek(date = new Date()) {
   const d = daysBetween(planStart(), date);
   if (d < 0) return 0;
-  return Math.min(Math.floor(d / 7) + 1, TOTAL_WEEKS + 1);
+  return Math.min(Math.floor(d / 7) + startWeek(), TOTAL_WEEKS + 1);
 }
 
 export function weekStartDate(week) {
-  return addDays(planStart(), (week - 1) * 7);
+  return addDays(planStart(), (week - startWeek()) * 7);
 }
 
 export function dateFor(week, day) {
   return addDays(weekStartDate(week), day);
 }
 
+// Plan so legen, dass `week` an `monday` beginnt
+export function setPlanWeek(week, monday = mondayOf(new Date())) {
+  S().settings.startDate = toISO(mondayOf(monday));
+  S().settings.startWeek = Math.min(Math.max(week, 1), TOTAL_WEEKS);
+}
+
 export function setStartForPhase(phaseNum, baseMonday = mondayOf(new Date())) {
   const phase = PHASES.find((p) => p.num === phaseNum) || PHASES[0];
-  S().settings.startDate = toISO(addDays(baseMonday, -(phase.weeks[0] - 1) * 7));
+  setPlanWeek(phase.weeks[0], baseMonday);
 }
 
 const cycleOf = (s) => s.cycle || 1;
 export const currentCycle = () => S().settings.cycle || 1;
 
+// Ein Training zählt nur für eine Planwoche, wenn es nicht vor deren Beginn absolviert wurde.
+// So bleibt eine Woche offen, wenn der Plan zurückgesetzt wird („Woche wiederholen“).
+function countsFor(s, week) {
+  return toISO(new Date(s.date)) >= toISO(weekStartDate(week));
+}
+
 export function sessionsInWeek(week) {
   const c = currentCycle();
-  return S().sessions.filter((s) => s.week === week && cycleOf(s) === c);
+  return S().sessions.filter((s) => s.week === week && cycleOf(s) === c && countsFor(s, week));
 }
 
 export function slotSession(week, slot) {
   const c = currentCycle();
-  return S().sessions.find((s) => s.week === week && s.slot === slot && cycleOf(s) === c);
+  return S().sessions.find((s) => s.week === week && s.slot === slot && cycleOf(s) === c && countsFor(s, week));
 }
 
 export function weekStatus(week) {
@@ -62,6 +76,32 @@ export function todayPlan(date = new Date()) {
   const wd = weekdayIndex(date);
   const todaySlot = schedule.find((x) => x.day === wd) || null;
   return { week, info: weekInfo(week), schedule, todaySlot, next: nextOpenSlot(week) };
+}
+
+// ───── Dauerhafte Übungs-Ersetzungen (z. B. Gerät gibt es im eigenen Studio nicht) ─────
+export function replacementFor(exId) {
+  const r = S().settings.replacements || {};
+  return r[exId] && EX_BY_ID[r[exId]] ? r[exId] : null;
+}
+
+export function resolveEx(exId) {
+  return replacementFor(exId) || exId;
+}
+
+export function setReplacement(planned, alt) {
+  const r = (S().settings.replacements ||= {});
+  if (!alt || alt === planned) delete r[planned];
+  else r[planned] = alt;
+}
+
+// Training inkl. persönlicher Ersetzungen
+export function personalWorkout(workoutId, week) {
+  const w = buildWorkout(workoutId, week);
+  w.items = w.items.map((it) => {
+    const id = resolveEx(it.ex);
+    return id === it.ex ? it : { ...it, ex: id, planned: it.ex, exercise: EX_BY_ID[id] };
+  });
+  return w;
 }
 
 // ───── Leistungsdaten ─────
@@ -117,6 +157,26 @@ export function exerciseHistory(exId) {
   return out;
 }
 
+// Bestwerte pro Übung (für die Rekordliste)
+export function personalRecords() {
+  const best = new Map();
+  for (const s of S().sessions) {
+    for (const it of s.items) {
+      const ex = EX_BY_ID[it.ex];
+      if (!ex || ex.type !== 'reps' || ex.assisted) continue;
+      for (const set of doneSets(it)) {
+        const kg = parseNum(set.kg);
+        const reps = parseNum(set.reps);
+        if (!(kg > 0 && reps > 0)) continue;
+        const v = e1rm(kg, reps);
+        const cur = best.get(it.ex);
+        if (!cur || v > cur.e1rm) best.set(it.ex, { ex: it.ex, e1rm: Math.round(v * 10) / 10, kg, reps, date: s.date });
+      }
+    }
+  }
+  return [...best.values()].sort((a, b) => b.e1rm - a.e1rm);
+}
+
 // Vorschlag nach doppelter Progression
 export function suggestion(exId, targetReps) {
   const ex = EX_BY_ID[exId];
@@ -138,6 +198,24 @@ export function suggestion(exId, targetReps) {
     return { kind: 'up', kg, text: `Ziel erreicht – Gewicht erhöhen (${step}).` };
   }
   return { kind: 'same', kg, text: 'Gleiches Gewicht – schaffe 1–2 Wiederholungen mehr.' };
+}
+
+// Aufwärmsätze aus dem Arbeitsgewicht (gerundet auf 2,5 kg, Kurzhanteln auf 1 kg)
+export function warmupSets(exId, workKg, targetReps) {
+  const ex = EX_BY_ID[exId];
+  if (!ex || ex.type !== 'reps' || ex.assisted || !(workKg > 0)) return [];
+  const step = ex.equipment === 'kh' ? 1 : 2.5;
+  const round = (v) => Math.max(step, Math.round(v / step) * step);
+  const [lo] = parseRange(targetReps);
+  const sets = [{ pct: 50, reps: 10 }, { pct: 70, reps: 5 }];
+  if (lo <= 8) sets.push({ pct: 85, reps: 3 });
+  if (lo <= 5) sets.push({ pct: 92, reps: 1 });
+  const out = [];
+  for (const s of sets) {
+    const kg = round((workKg * s.pct) / 100);
+    if (kg < workKg && !out.some((o) => o.kg === kg)) out.push({ ...s, kg });
+  }
+  return out;
 }
 
 export function sessionVolume(session) {
@@ -201,8 +279,8 @@ export function levelInfo(xp = xpTotal()) {
 
 // ───── Training starten / beenden ─────
 export function startSession(workoutId, week, slot) {
-  const w = buildWorkout(workoutId, week);
-  const items = w.items.map((it) => makeItem(it));
+  const w = personalWorkout(workoutId, week);
+  const items = w.items.map((it) => makeItem(it, it.ex, it.planned || it.ex));
   S().active = {
     id: uid(),
     workoutId,
@@ -217,15 +295,17 @@ export function startSession(workoutId, week, slot) {
   return S().active;
 }
 
-export function makeItem(it, exId = it.ex) {
+// Gewichte werden aus dem letzten Training vorbelegt (auto = noch nicht selbst geändert)
+export function makeItem(it, exId = it.ex, planned = it.planned || it.ex) {
   const last = lastPerformance(exId);
   const log = Array.from({ length: it.sets }, (_, i) => {
     const prev = last?.sets[i] || last?.sets[last.sets.length - 1];
-    return { kg: prev && prev.kg !== '' ? String(prev.kg) : '', reps: '', done: false };
+    const kg = prev && prev.kg !== '' ? String(prev.kg) : '';
+    return { kg, reps: '', done: false, auto: kg !== '' };
   });
   return {
     ex: exId,
-    planned: it.ex,
+    planned,
     sets: it.sets,
     reps: it.reps,
     rest: it.rest,
@@ -252,7 +332,9 @@ export function finishSession() {
     name: a.name,
     date: new Date(a.startedAt).toISOString(),
     duration: Math.round((end - a.startedAt) / 1000),
-    items: a.items.map((it) => ({ ...it, log: it.log.filter((s) => s.done) })),
+    items: a.items.map(({ log, ...it }) => ({ ...it, log: log.filter((s) => s.done).map(({ kg, reps, done }) => ({ kg, reps, done })) })),
+    feel: null,
+    note: '',
   };
   // Rekorde gegen alle bisherigen Trainings
   const prs = [];
@@ -274,8 +356,8 @@ export function finishSession() {
   st.sessions.push(session);
   st.active = null;
   const unlocked = checkAchievements();
-  store.save();
-  return { session, unlocked };
+  const saved = store.save();
+  return { session, unlocked, saved };
 }
 
 // ───── Erfolge ─────

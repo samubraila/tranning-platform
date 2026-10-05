@@ -1,10 +1,10 @@
 import { store } from './store.js';
 import { icon } from './icons.js';
-import { fmtClock } from './utils.js';
-import { route, startRouter, onAfterRender, on, go } from './router.js';
+import { esc, fmtClock, todayISO } from './utils.js';
+import { route, startRouter, onAfterRender, on, go, back, rerender, currentRoute, setRenderErrorHandler } from './router.js';
 import { applyTheme } from './theme.js';
 import { initTimer, unlockAudio } from './ui/timer.js';
-import { closeSheet } from './ui/components.js';
+import { closeSheet, toast } from './ui/components.js';
 import { checkAchievements } from './logic.js';
 
 import { homeView } from './views/home.js';
@@ -42,7 +42,7 @@ function updateShell(view) {
   clearInterval(pillTimer);
   if (a && view.name !== 'session') {
     const render = () => {
-      pill.innerHTML = `<span class="pulse"></span><span>${a.name.split(' – ')[0]} · ${fmtClock((Date.now() - a.startedAt) / 1000)}</span><span class="go">Weiter</span>`;
+      pill.innerHTML = `<span class="pulse"></span><span>${esc(a.name.split(' – ')[0])} · ${fmtClock((Date.now() - a.startedAt) / 1000)}</span><span class="go">Weiter</span>`;
     };
     render();
     pill.hidden = false;
@@ -81,19 +81,46 @@ register('/fortschritt', progressView);
 register('/einstellungen', settingsView);
 register('/start', onboardingView);
 
-// Eigener Verlauf, damit „Zurück“ nie aus der App herausführt
-const navStack = [location.hash || '#/'];
-let replacing = false;
-window.addEventListener('hashchange', () => {
-  const h = location.hash || '#/';
-  if (replacing) { navStack[navStack.length - 1] = h; replacing = false; return; }
-  if (navStack.length >= 2 && navStack[navStack.length - 2] === h) navStack.pop();
-  else navStack.push(h);
+on('go-back', (el) => back(el.dataset.fallback || '#/'));
+on('reload-home', () => { location.replace('#/'); location.reload(); });
+
+// Fehlerseite statt leerem Bildschirm – mit Rettungsoptionen
+setRenderErrorHandler((root, e) => {
+  root.innerHTML = `<div class="onb"><div class="body">
+    <div class="tile-ic accent" style="margin-top:24px">${icon('alert', 22)}</div>
+    <h1 class="page-title mt-16">Da ist etwas schiefgelaufen</h1>
+    <p class="muted mt-8">Die Seite konnte nicht angezeigt werden. Deine Daten sind weiterhin gespeichert.</p>
+    <p class="tiny faint mt-8">${esc(String(e?.message || e).slice(0, 200))}</p>
+    <div class="stack mt-24">
+      <button class="btn btn-primary btn-block" data-action="reload-home">Neu laden</button>
+      <button class="btn btn-outline btn-block" data-action="export">${icon('download', 18)} Backup herunterladen</button>
+      <button class="btn btn-danger btn-block" data-action="reset-all">${icon('trash', 18)} Alle Daten löschen</button>
+    </div></div></div>`;
+  document.body.classList.remove('no-nav');
 });
-on('go-back', (el) => {
-  if (navStack.length > 1) history.back();
-  else { replacing = true; location.replace(el.dataset.fallback || '#/'); }
-});
+
+// Speicherfehler (voller Speicher, privater Modus) sichtbar machen – höchstens alle 20 Sekunden
+let lastSaveWarn = 0;
+store.onError = () => {
+  const now = Date.now();
+  if (now - lastSaveWarn < 20000) return;
+  lastSaveWarn = now;
+  toast('Speichern nicht möglich – Speicher voll oder privater Modus. Bitte ein Backup machen.', 'alert', 6000);
+};
+
+// Neuer Tag, während die App offen bleibt: Heute-/Plan-Ansicht aktualisieren
+let lastDay = todayISO();
+function checkDayChange() {
+  if (document.hidden) return;
+  const d = todayISO();
+  if (d === lastDay) return;
+  lastDay = d;
+  const name = currentRoute()?.view?.name;
+  if (['home', 'plan', 'week', 'progress'].includes(name)) rerender();
+}
+document.addEventListener('visibilitychange', checkDayChange);
+window.addEventListener('focus', checkDayChange);
+setInterval(checkDayChange, 60000);
 
 document.getElementById('live-pill').addEventListener('click', () => go('#/session'));
 document.addEventListener('pointerdown', unlockAudio, { once: true });
@@ -102,11 +129,21 @@ applyTheme();
 buildNav();
 initTimer();
 onAfterRender((view) => updateShell(view));
-checkAchievements();
+try { checkAchievements(); } catch (e) { console.warn('Erfolge konnten nicht geprüft werden', e); }
 startRouter();
+if (!store.storageOk) setTimeout(() => store.onError?.(), 800);
 
 // Offline-Fähigkeit
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+  const hadController = !!navigator.serviceWorker.controller;
+  let reloading = false;
+  // Neue Version aktiv: sofort neu laden – außer mitten im Training oder beim Tippen
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController || reloading) return;
+    const typing = document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
+    if (!store.state.active && !typing) { reloading = true; location.reload(); }
+    else toast('Neue App-Version geladen – sie startet beim nächsten Öffnen.', 'refresh', 4000);
+  });
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js').catch((e) => console.warn('Service Worker nicht registriert', e));
   });

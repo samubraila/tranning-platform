@@ -1,11 +1,12 @@
 import { icon } from '../icons.js';
 import { esc, fmtDayMonth, fmtClock, addDays } from '../utils.js';
 import { backHeader } from '../ui/components.js';
-import { currentWeek, weekStatus, slotSession, dateFor, weekStartDate } from '../logic.js';
+import { currentWeek, weekStatus, slotSession, dateFor, weekStartDate, personalWorkout, resolveEx } from '../logic.js';
 import { store } from '../store.js';
 import { PHASES, TOTAL_WEEKS, WORKOUTS, WEEKDAYS_LONG, WARMUP, weekInfo, weekSchedule, buildWorkout, estimateMinutes } from '../data/program.js';
 import { phaseChip, kindChip, rirChip, muscleChips } from './shared.js';
-import { workoutMuscles, targetText } from '../data/program.js';
+import { workoutMuscles, targetText, weekMuscleSets } from '../data/program.js';
+import { MUSCLES, EX_BY_ID } from '../data/exercises.js';
 
 function timeline(cw) {
   const segs = PHASES.map((p) => `<span class="ph-${p.num}" style="flex:${p.weeks[1] - p.weeks[0] + 1}" title="Phase ${p.num}: ${esc(p.name)}"></span>`).join('');
@@ -44,7 +45,7 @@ function phaseCard(p, cw) {
   const unique = [...new Set(rot)];
   const workouts = unique.map((id) => {
     const slot = rot.indexOf(id);
-    const w = buildWorkout(id, refWeek);
+    const w = personalWorkout(id, refWeek);
     return `<a class="item" href="#/workout/${id}/${refWeek}/${slot}">
       <div class="idx">${String.fromCharCode(65 + unique.indexOf(id))}</div>
       <div class="grow"><div class="title">${esc(w.name)}</div><div class="sub">${w.items.length} Übungen · ca. ${estimateMinutes(w)} Min</div></div>
@@ -76,6 +77,25 @@ function phaseCard(p, cw) {
       <div class="list mt-8">${workouts}</div>
     </div>
   </details>`;
+}
+
+// Harte Sätze pro Muskel – mit Zielbereich (Einsteiger 6–12, sonst 10–20)
+function muscleBars(week, info) {
+  const vol = weekMuscleSets(week, store.state.settings, resolveEx);
+  const order = ['brust', 'ruecken', 'schultern', 'bizeps', 'trizeps', 'quadrizeps', 'beinbeuger', 'po', 'waden', 'bauch'];
+  const [lo, hi] = info.phase.num === 1 ? [6, 12] : [10, 20];
+  const scale = 24;
+  const rows = order.filter((m) => vol[m]).map((m) => {
+    const v = Math.round(vol[m] * 2) / 2;
+    const tip = v < lo && info.kind !== 'deload' ? ' · unter Ziel' : '';
+    return `<div class="mbar" role="listitem" aria-label="${esc(MUSCLES[m].name)}: ${String(v).replace('.', ',')} Sätze${tip}">
+      <span class="ml">${esc(MUSCLES[m].name)}</span>
+      <span class="mt" style="--lo:${(lo / scale) * 100}%;--hi:${(hi / scale) * 100}%"><span style="width:${Math.min(100, (v / scale) * 100)}%"></span></span>
+      <span class="mv">${String(v).replace('.', ',')}</span>
+    </div>`;
+  }).join('');
+  return `<div class="mbars" role="list">${rows}</div>
+    <div class="tiny faint mt-12"><span class="zone-key"></span> Zielbereich für Muskelaufbau: ${lo}–${hi} harte Sätze pro Woche${info.kind === 'deload' ? ' (im Deload bewusst weniger)' : ''}. Direkt trainierte Muskeln zählen voll, mittrainierte (z. B. Trizeps beim Bankdrücken) halb.</div>`;
 }
 
 export const planView = {
@@ -110,10 +130,10 @@ export const weekView = {
     const start = weekStartDate(week);
     const cw = currentWeek();
     const rows = sched.map((x) => {
-      const w = buildWorkout(x.workoutId, week);
+      const w = personalWorkout(x.workoutId, week);
       const s = slotSession(week, x.slot);
       const date = dateFor(week, x.day);
-      const href = s ? `#/verlauf/${s.id}` : `#/workout/${x.workoutId}/${week}/${x.slot}`;
+      const href = s ? `#/verlauf/${esc(s.id)}` : `#/workout/${x.workoutId}/${week}/${x.slot}`;
       return `<a class="item" href="${href}">
         <div class="idx ${s ? 'ok' : ''}">${s ? icon('check', 16) : x.slot + 1}</div>
         <div class="grow"><div class="title">${esc(w.name)}</div><div class="sub">${WEEKDAYS_LONG[x.day]}, ${esc(fmtDayMonth(date))} · ca. ${estimateMinutes(w)} Min${s ? ' · erledigt' : ''}</div></div>
@@ -140,6 +160,10 @@ export const weekView = {
         <p class="tiny faint mt-8">Tage anpassen unter Einstellungen → Trainingstage. Verpasst? Mach einfach mit dem nächsten offenen Training weiter.</p>
       </div>
       <div class="section">
+        <div class="section-head"><h2 class="h">Sätze pro Muskel</h2><span class="small faint">diese Woche</span></div>
+        <div class="card">${muscleBars(week, info)}</div>
+      </div>
+      <div class="section">
         <div class="section-head"><h2 class="h">Zusätzlich diese Woche</h2></div>
         <div class="stack-sm">
           <div class="callout">${icon('heart', 20)}<div><b>Cardio</b><br>${esc(info.phase.cardio)}</div></div>
@@ -155,10 +179,14 @@ export const workoutPreviewView = {
   render({ id, week, slot }) {
     if (!WORKOUTS[id]) return `${backHeader('Training', { back: '#/plan' })}<p class="muted">Training nicht gefunden.</p>`;
     const wk = Math.min(Math.max(parseInt(week, 10) || 1, 1), TOTAL_WEEKS);
-    const w = buildWorkout(id, wk);
+    const w = personalWorkout(id, wk);
     const info = w.info;
     const sets = w.items.reduce((n, it) => n + it.sets, 0);
-    const done = slotSession(wk, Number(slot));
+    // Nur Trainings starten, die in dieser Woche wirklich geplant sind
+    const sched = weekSchedule(wk, store.state.settings);
+    const slotN = parseInt(slot, 10);
+    const entry = sched.find((x) => x.slot === slotN && x.workoutId === id) || sched.find((x) => x.workoutId === id) || null;
+    const done = entry ? slotSession(wk, entry.slot) : null;
     const items = w.items.map((it, i) => {
       const ex = it.exercise;
       const target = targetText(w.items, i);
@@ -170,6 +198,7 @@ export const workoutPreviewView = {
         <div class="grow">
           <div class="title row" style="gap:8px">${ssLabel}<span>${esc(ex.name)}</span></div>
           <div class="sub">${esc(target)}</div>
+          ${it.planned ? `<div class="tiny faint mt-8">statt ${esc(EX_BY_ID[it.planned].name)} (dauerhaft ersetzt)</div>` : ''}
           ${it.note ? `<div class="tiny faint mt-8">${esc(it.note)}</div>` : ''}
           ${it.tags.length ? `<div class="chips mt-8">${it.tags.map((t) => `<span class="chip chip-warn">${esc(t)}</span>`).join('')}</div>` : ''}
         </div>
@@ -186,9 +215,11 @@ export const workoutPreviewView = {
           <span class="row" style="gap:5px">${icon('layers', 15)} ${sets} Sätze</span>
         </div>
         <div class="chips mt-12">${rirChip(info)}${kindChip(info)}${muscleChips(workoutMuscles(w), 4, 2)}</div>
-        ${done
-          ? `<a class="btn btn-outline btn-block mt-16" href="#/verlauf/${done.id}">${icon('check', 18)} Erledigt – Ergebnis ansehen</a>`
-          : `<button class="btn btn-primary btn-block mt-16" data-action="start-workout" data-w="${id}" data-week="${wk}" data-slot="${Number(slot)}">${icon('play', 18)} Training starten</button>`}
+        ${!entry
+          ? `<div class="callout warn mt-16">${icon('info', 18)}<div>Dieses Training ist in Woche ${wk} nicht geplant. <a class="link" href="#/woche/${wk}">Zu den Trainings von Woche ${wk}</a></div></div>`
+          : done
+            ? `<a class="btn btn-outline btn-block mt-16" href="#/verlauf/${esc(done.id)}">${icon('check', 18)} Erledigt – Ergebnis ansehen</a>`
+            : `<button class="btn btn-primary btn-block mt-16" data-action="start-workout" data-w="${id}" data-week="${wk}" data-slot="${entry.slot}">${icon('play', 18)} Training starten</button>`}
       </div>
       ${info.notes.length ? `<div class="stack-sm mt-12">${info.notes.map((t) => `<div class="callout">${icon('info', 20)}<div>${esc(t)}</div></div>`).join('')}</div>` : ''}
       <div class="section">

@@ -1,6 +1,6 @@
 import { store } from '../store.js';
 import { icon } from '../icons.js';
-import { esc, fmtNum, parseNum } from '../utils.js';
+import { esc, fmtNum, parseNum, fmtDec } from '../utils.js';
 import { on, onInput, onChange, rerender } from '../router.js';
 import { backHeader, ring, toast } from '../ui/components.js';
 import { MODULES, LESSONS, LESSON_BY_ID, XP } from '../data/academy.js';
@@ -190,7 +190,7 @@ export const calculatorView = {
           <label class="field"><span class="lbl">Alter</span><input class="input" inputmode="numeric" value="${esc(p.age)}" placeholder="Jahre" data-input="calc-field" data-k="age" /></label>
           <label class="field"><span class="lbl">Größe (cm)</span><input class="input" inputmode="numeric" value="${esc(p.height)}" placeholder="z. B. 180" data-input="calc-field" data-k="height" /></label>
         </div>
-        <label class="field"><span class="lbl">Gewicht (kg)</span><input class="input" inputmode="decimal" value="${esc(p.weight)}" placeholder="z. B. 80" data-input="calc-field" data-k="weight" /></label>
+        <label class="field"><span class="lbl">Gewicht (kg)</span><input class="input" inputmode="decimal" value="${esc(fmtDec(p.weight))}" placeholder="z. B. 80,5" data-input="calc-field" data-k="weight" /></label>
         <label class="field"><span class="lbl">Aktivität</span>
           <select class="input" data-change="calc-select" data-k="activity">${ACTIVITY.map(([v, n, d]) => `<option value="${v}" ${Number(p.activity) === v ? 'selected' : ''}>${n} – ${d}</option>`).join('')}</select>
         </label>
@@ -209,7 +209,9 @@ on('calc-set', (el) => {
   rerender();
 });
 onInput('calc-field', (el) => {
-  store.state.profile[el.dataset.k] = el.value.replace(',', '.').trim();
+  const clean = el.value.replace(/[^\d.,]/g, '').slice(0, 6);
+  if (clean !== el.value) el.value = clean;
+  store.state.profile[el.dataset.k] = clean.replace(',', '.');
   store.save();
   document.getElementById('calc-result').innerHTML = resultHTML();
 });

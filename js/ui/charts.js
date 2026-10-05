@@ -26,7 +26,7 @@ function table(rows, head) {
 }
 
 // data: [{ label, value, tip }]
-export function barChart(data, { height = 170, unit = '', labelEvery = 0, valueFmt = fmtNum, tableHead = ['Woche', 'Wert'] } = {}) {
+export function barChart(data, { height = 170, unit = '', labelEvery = 0, valueFmt = fmtNum, tableFmt = fmtNum, tableHead = ['Woche', 'Wert'] } = {}) {
   if (!data.length || data.every((d) => !d.value)) return `<div class="chart-empty">Noch keine Daten – nach deinem ersten Training erscheint hier dein Verlauf.</div>`;
   const pad = { l: 38, r: 6, t: 18, b: 22 };
   const ih = height - pad.t - pad.b;
@@ -75,7 +75,7 @@ export function barChart(data, { height = 170, unit = '', labelEvery = 0, valueF
       <g>${hits}</g>
     </svg>
     <div class="chart-tip" hidden></div>
-  </div>${table(data.map((d) => [d.label, `${valueFmt(d.value)} ${unit}`.trim()]), tableHead)}`;
+  </div>${table(data.map((d) => [d.label, `${tableFmt(d.value)} ${unit}`.trim()]), tableHead)}`;
 }
 
 // points: [{ label, value, tip }]
@@ -128,7 +128,18 @@ export function lineChart(points, { height = 170, unit = '', valueFmt = fmtNum, 
   </div>${table(points.map((p) => [p.label, `${valueFmt(p.value)} ${unit}`.trim()]), tableHead)}`;
 }
 
+// Ein globaler Listener: Tippen außerhalb eines Diagramms blendet dessen Tooltip aus
+let globalBound = false;
+function bindGlobal() {
+  if (globalBound) return;
+  globalBound = true;
+  document.addEventListener('pointerdown', (e) => {
+    document.querySelectorAll('.chart').forEach((c) => { if (!c.contains(e.target)) c._hide?.(); });
+  }, { passive: true });
+}
+
 export function bindCharts(root) {
+  bindGlobal();
   root.querySelectorAll('.chart').forEach((chart) => {
     if (chart.dataset.bound) return;
     chart.dataset.bound = '1';
@@ -171,6 +182,8 @@ export function bindCharts(root) {
     };
     chart.addEventListener('pointermove', onMove);
     chart.addEventListener('pointerdown', onMove);
-    chart.addEventListener('pointerleave', hide);
+    // Maus: beim Verlassen ausblenden. Touch: Tooltip bleibt stehen, bis woanders hingetippt wird.
+    chart.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') hide(); });
+    chart._hide = hide;
   });
 }

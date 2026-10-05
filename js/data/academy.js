@@ -76,6 +76,25 @@ export const LESSONS = [
     ],
   },
 
+  {
+    id: 'mythen', module: 'grundlagen', title: 'Die größten Fitness-Mythen', minutes: 4,
+    intro: 'Im Studio hört man viele „Weisheiten“. Einige davon kosten dich Zeit, Geld oder Fortschritt. Hier sind die häufigsten – und was die Forschung wirklich sagt.',
+    sections: [
+      { h: 'Mythos 1: Bauchübungen verbrennen Bauchfett', p: 'Gezieltes Fettverbrennen an einer Stelle („Spot Reduction“) funktioniert nicht. Fett wird am ganzen Körper abgebaut – über ein Kaloriendefizit. Bauchtraining baut die Bauchmuskeln auf, sichtbar werden sie erst bei niedrigem Körperfett.' },
+      { h: 'Mythos 2: Frauen werden durch Krafttraining „zu muskulös“', p: 'Muskelaufbau ist ein langsamer Prozess – bei Frauen wegen des niedrigeren Testosteronspiegels noch langsamer. Krafttraining sorgt für eine straffere Figur, stärkere Knochen und einen höheren Grundumsatz.' },
+      { h: 'Mythos 3: Mehr Schweiß = mehr Fettverbrennung', p: 'Schweiß kühlt den Körper. Wie viel du schwitzt, hängt von Temperatur, Genetik und Kleidung ab – nicht vom Trainingserfolg. Das verlorene Wasser ist nach dem Trinken sofort wieder da.' },
+      { h: 'Mythos 4: Viel Eiweiß schadet den Nieren', p: 'Bei gesunden Menschen gibt es bei 1,6–2,2 g pro kg Körpergewicht keine Hinweise auf Nierenschäden. Wer eine Nierenerkrankung hat, sollte die Eiweißmenge mit dem Arzt oder der Ärztin besprechen.' },
+      { h: 'Mythos 5: Muskeln werden zu Fett, wenn man aufhört', p: 'Muskel- und Fettgewebe sind völlig verschiedene Gewebe – das eine kann sich nicht in das andere umwandeln. Wer pausiert, verliert langsam Muskeln und nimmt bei gleichem Essen eher Fett zu. Die gute Nachricht: Verlorene Muskeln kommen schneller zurück („Muscle Memory“).' },
+      { h: 'Mythos 6: Kreatin ist Doping', p: 'Kreatin ist ein körpereigener Stoff, steckt auch in Fleisch und Fisch und ist eines der am besten untersuchten Supplements. Es ist legal und für Gesunde sicher.' },
+    ],
+    takeaways: ['Fett verlierst du über ein Kaloriendefizit, nicht durch Bauchübungen.', 'Schweiß ist kein Maß für Erfolg.', 'Krafttraining lohnt sich für alle – egal welches Geschlecht.'],
+    quiz: [
+      { q: 'Wie verlierst du Bauchfett am effektivsten?', options: ['Täglich 200 Crunches', 'Über ein Kaloriendefizit und Training für den ganzen Körper', 'Mit Schwitzgürtel', 'Gar nicht'], correct: 1, explain: 'Fett wird am ganzen Körper abgebaut – lokal „wegtrainieren“ funktioniert nicht.' },
+      { q: 'Was passiert mit Muskeln, wenn du länger pausierst?', options: ['Sie werden zu Fett', 'Sie bauen sich langsam ab, kommen aber schnell wieder', 'Sie wachsen weiter', 'Nichts'], correct: 1, explain: 'Muskeln können nicht zu Fett werden. Dank „Muscle Memory“ baust du sie nach einer Pause schneller wieder auf.' },
+      { q: 'Ist Kreatin Doping?', options: ['Ja, es ist verboten', 'Nein, es ist ein gut erforschtes, legales Supplement', 'Nur im Wettkampf', 'Nur für Profis erlaubt'], correct: 1, explain: 'Kreatin ist körpereigen, legal und eines der am besten untersuchten Supplements.' },
+    ],
+  },
+
   // ───────────── Technik & Sicherheit ─────────────
   {
     id: 'aufwaermen', module: 'technik', title: 'Richtig aufwärmen', minutes: 3,
@@ -151,6 +170,35 @@ export const LESSONS = [
       { q: 'Worauf richtest du die Drehachse einer Maschine aus?', options: ['Auf die Hüfte', 'Auf das Gelenk, das sich bewegt', 'Auf den Kopf', 'Egal'], correct: 1, explain: 'Beim Beinstrecker z. B. auf das Knie – so läuft die Bewegung sauber und gelenkschonend.' },
       { q: 'Das Gerät aus deinem Plan ist besetzt. Was tun?', options: ['Training abbrechen', 'Eine Alternative aus der Bibliothek nehmen', '20 Minuten warten', 'Übung weglassen'], correct: 1, explain: 'Jede Übung hat gleichwertige Alternativen – so bleibst du im Plan.' },
       { q: 'Wann ist es im Studio meist am vollsten?', options: ['Werktags 17–20 Uhr', 'Sonntag 7 Uhr', 'Mittwoch 13 Uhr', 'Nachts'], correct: 0, explain: 'Nach Feierabend ist am meisten los – wenn möglich ausweichen.' },
+    ],
+  },
+
+  {
+    id: 'geraete-vs-frei', module: 'technik', title: 'Maschinen, Kabel oder freie Gewichte?', minutes: 4,
+    intro: 'Bei McFit hast du alles: geführte Maschinen, Kabelzüge, Kurz- und Langhanteln. Jede Variante hat Stärken – dein Plan nutzt sie gezielt.',
+    sections: [
+      { h: 'Maschinen', list: [
+        'Plus: Die Bewegung ist geführt, darum sicher und schnell zu lernen. Du kannst gefahrlos bis kurz vors Muskelversagen gehen.',
+        'Plus: ideal, um einen Muskel gezielt zu treffen (z. B. Beinstrecker, Butterfly).',
+        'Minus: Die Maschine passt nicht zu jeder Körpergröße perfekt – Einstellung ist Pflicht.',
+      ] },
+      { h: 'Kabelzug', list: [
+        'Plus: gleichmäßige Spannung über die ganze Bewegung, auch in der gedehnten Position.',
+        'Plus: extrem vielseitig – fast jeder Muskel lässt sich aus verschiedenen Winkeln trainieren.',
+        'Minus: Gewichtsangaben unterscheiden sich von Gerät zu Gerät – vergleiche dein Gewicht nur am selben Kabelturm.',
+      ] },
+      { h: 'Freie Gewichte', list: [
+        'Plus: trainieren Stabilität und Koordination mit – Rumpf und kleine Muskeln arbeiten mit.',
+        'Plus: Kniebeugen, Kreuzheben und Bankdrücken sind die besten Übungen, um Kraft für den Alltag aufzubauen.',
+        'Minus: Die Technik braucht Übung, schwere Sätze brauchen eine Sicherung (Rack, Multipresse oder Partner).',
+      ] },
+      { h: 'Was ist besser für Muskelaufbau?', p: 'Für das Muskelwachstum sind Maschinen und freie Gewichte praktisch gleich gut, solange du nah ans Muskelversagen gehst und dich steigerst. Die Mischung macht es: Darum beginnt dein Plan mit Maschinen (Phase 1) und baut ab Phase 2 freie Gewichte ein.' },
+    ],
+    takeaways: ['Muskeln wachsen mit Maschinen und freien Gewichten gleich gut.', 'Maschinen zum sicheren Lernen und für harte Sätze.', 'Freie Gewichte für Kraft und Stabilität.'],
+    quiz: [
+      { q: 'Was ist der größte Vorteil von Maschinen?', options: ['Sie sehen schöner aus', 'Die geführte Bewegung – sicher bis kurz vors Muskelversagen', 'Sie trainieren immer den ganzen Körper', 'Sie brauchen keine Einstellung'], correct: 1, explain: 'Geführte Bewegungen machen harte Sätze sicher – ideal für Einsteiger und für Isolationsübungen.' },
+      { q: 'Sind freie Gewichte besser für Muskelwachstum als Maschinen?', options: ['Ja, immer', 'Nein, beide sind gleich gut, wenn du hart trainierst und dich steigerst', 'Nur Maschinen bauen Muskeln auf', 'Nur mit Langhantel'], correct: 1, explain: 'Entscheidend sind Spannung, Nähe zum Versagen und Progression – nicht das Gerät.' },
+      { q: 'Worauf musst du beim Kabelzug achten?', options: ['Gewichte sind zwischen Geräten oft nicht vergleichbar', 'Man darf nur leichte Gewichte nehmen', 'Kabel nur für Arme', 'Nichts'], correct: 0, explain: 'Je nach Umlenkrolle fühlt sich dasselbe Gewicht an verschiedenen Geräten unterschiedlich an.' },
     ],
   },
 
@@ -378,6 +426,8 @@ export const TIPS = [
   'Trainiere früh morgens oder spät abends, um McFit-Stoßzeiten zu meiden.',
   'Handtuch aufs Polster, Gerät desinfizieren – Studio-Knigge zahlt sich aus.',
   'Bei Fieber gilt: kein Training. Gesundheit geht vor.',
+  'Gibt es ein Gerät in deinem Studio nicht? Im Training „Tauschen“ → „Für alle Trainings merken“.',
+  'Trag deine Trainings in den Handy-Kalender ein: Einstellungen → Kalender & Erinnerungen.',
 ];
 
 // ───────────── Erfolge ─────────────

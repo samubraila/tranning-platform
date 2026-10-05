@@ -1,6 +1,7 @@
 // FORGE52 Service Worker – macht die App offline nutzbar.
 // Bei Änderungen an Dateien die Version erhöhen, damit Handys die neue Version laden.
-const VERSION = 'forge52-v1.0.0';
+const VERSION = 'forge52-v1.1.0';
+const PREFIX = 'forge52-';
 const ASSETS = [
   './',
   './index.html',
@@ -35,13 +36,15 @@ const ASSETS = [
 ];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting()));
+  // cache: 'reload' umgeht den HTTP-Cache, damit wirklich die neue Version gespeichert wird
+  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(ASSETS.map((u) => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== VERSION).map((k) => caches.delete(k))))
+      // Nur eigene alte Caches löschen – andere Apps auf derselben Domain (z. B. /Buch/) bleiben unberührt
+      .then((keys) => Promise.all(keys.filter((k) => k.startsWith(PREFIX) && k !== VERSION).map((k) => caches.delete(k))))
       .then(() => self.clients.claim()),
   );
 });
@@ -50,19 +53,24 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) return;
+  // Ein fester Cache-Schlüssel ohne Query/Hash, damit nie eine veraltete Kopie (z. B. ?utm=…) ausgeliefert wird
+  const keyUrl = new URL(req.url);
+  keyUrl.search = '';
+  keyUrl.hash = '';
+  const key = keyUrl.href;
   e.respondWith(
     caches.open(VERSION).then(async (cache) => {
-      const cached = await cache.match(req, { ignoreSearch: true });
+      const cached = await cache.match(key);
       const network = fetch(req)
         .then((res) => {
-          if (res && res.ok) cache.put(req, res.clone());
+          if (res && res.ok && res.type === 'basic') cache.put(key, res.clone());
           return res;
         })
         .catch(() => null);
       if (cached) return cached;
       const res = await network;
       if (res) return res;
-      if (req.mode === 'navigate') return cache.match('./index.html');
+      if (req.mode === 'navigate') return (await cache.match(new URL('./', self.registration.scope).href)) || cache.match(new URL('./index.html', self.registration.scope).href);
       return new Response('Offline', { status: 503, statusText: 'Offline' });
     }),
   );

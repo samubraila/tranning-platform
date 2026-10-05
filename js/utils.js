@@ -48,6 +48,8 @@ export const fmtDateFull = (d) => fmtFull.format(d instanceof Date ? d : parseIS
 // ───── Zahlen ─────
 const nf = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 1 });
 export const fmtNum = (n) => nf.format(n || 0);
+// Gespeicherte Dezimalzahl ("62.5") für die Anzeige im deutschen Format ("62,5")
+export const fmtDec = (v) => (v === '' || v == null ? '' : String(v).replace('.', ','));
 export function fmtCompact(n) {
   if (n >= 1_000_000) return nf.format(n / 1_000_000) + ' Mio.';
   if (n >= 10_000) return nf.format(Math.round(n / 100) / 10) + ' t';

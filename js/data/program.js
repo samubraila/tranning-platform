@@ -219,7 +219,7 @@ export const WORKOUTS = {
 // Wochen-Typen: load = Belastung, deload = Entlastung, test = Leistungstest
 const L = (rir, label, extra = {}) => ({ kind: 'load', rir, label, setsAdj: 0, ...extra });
 const DELOAD = (label = 'Deload') => ({ kind: 'deload', rir: '4–5', label, setsAdj: 0 });
-const TEST = (label = 'Testwoche') => ({ kind: 'test', rir: '1–2', label, setsAdj: 0 });
+const TEST = (label = 'Testwoche') => ({ kind: 'test', rir: '2', label, setsAdj: 0 });
 
 export const PHASES = [
   {
@@ -365,7 +365,7 @@ export function weekInfo(week) {
     if (w === TOTAL_WEEKS) notes.push('Das letzte Training des Jahres: Schau dir deinen Fortschritt an und plane dein nächstes Jahr.');
   }
   if (cfg.kind === 'test') {
-    notes.push('Testwoche: Bei der ersten Übung jedes Trainings arbeitest du dich über Aufwärmsätze an ein sauberes 5-Wiederholungs-Maximum heran (1 Satz, RIR 0–1). Danach normal weiter mit RIR 2.');
+    notes.push('Testwoche: Bei der ersten Übung jedes Trainings arbeitest du dich über Aufwärmsätze an ein sauberes 5-Wiederholungs-Maximum heran (1 Testsatz, RIR 0–1). Alle anderen Übungen trainierst du normal mit RIR 2.');
   }
   if (cfg.note) notes.push(cfg.note);
   return {
@@ -392,9 +392,17 @@ export function buildWorkout(workoutId, week) {
       else if (info.setsAdj > 0 && i < 2) sets = sets + info.setsAdj;
     }
     const tags = [];
-    if (info.kind === 'test' && i === 0) tags.push('Test: 5-Wdh-Max');
     if (info.dropsets && !it.finisher && (ex.equipment === 'maschine' || ex.equipment === 'kabel') && i >= 1) tags.push('Drop-Satz im letzten Satz');
     if (info.kind === 'deload' && !it.finisher) tags.push('−10–15 % Gewicht');
+    // Testwoche: erste Übung = 1 Testsatz mit maximal 5 sauberen Wiederholungen
+    if (info.kind === 'test' && i === 0 && !it.finisher) {
+      const safety = ex.equipment === 'lh' ? ' Ohne Sicherungspartner an der Multipresse testen.' : '';
+      return {
+        ...it, sets: 1, reps: '5', rest: 240, rir: '0–1', exercise: ex,
+        tags: ['Test: 5-Wdh-Max'],
+        note: `Aufwärmen: ca. 50 % × 8, 70 % × 5, 85 % × 2, 92 % × 1 – dann 1 Satz mit dem schwersten Gewicht für 5 saubere Wiederholungen.${safety}`,
+      };
+    }
     return { ...it, sets, rir: it.finisher ? null : info.rir, tags, exercise: ex };
   });
   return { id: workoutId, name: base.name, focus: base.focus, items, week: info.week, info };
@@ -418,11 +426,29 @@ export function workoutMuscles(workout) {
   return Object.entries(count).sort((a, b) => b[1] - a[1]).map(([m]) => m);
 }
 
-// Liste der Trainingstage einer Woche: [{ day (0=Mo), slot, workoutId }]
+const DEFAULT_DAYS = { 3: [0, 2, 4], 4: [0, 1, 3, 4] };
+
+// Liste der Trainingstage einer Woche: [{ day (0=Mo), slot, workoutId, week }]
 export function weekSchedule(week, settings) {
   const info = weekInfo(week);
-  const days = info.phase.perWeek === 4 ? settings.days4 : settings.days3;
-  return info.rotation.map((workoutId, slot) => ({ day: days[slot] ?? slot, slot, workoutId, week: info.week }));
+  const n = info.phase.perWeek;
+  let days = n === 4 ? settings.days4 : settings.days3;
+  if (!Array.isArray(days) || days.length !== n || new Set(days).size !== n) days = DEFAULT_DAYS[n];
+  return info.rotation.map((workoutId, slot) => ({ day: days[slot], slot, workoutId, week: info.week }));
+}
+
+// Geplante harte Sätze pro Muskel in einer Woche: direkt trainierte Muskeln = 1, mittrainierte = 0,5
+export function weekMuscleSets(week, settings, resolve = (id) => id) {
+  const vol = {};
+  for (const s of weekSchedule(week, settings)) {
+    for (const it of buildWorkout(s.workoutId, week).items) {
+      const ex = EX_BY_ID[resolve(it.ex)] || it.exercise;
+      if (ex.type === 'cardio') continue;
+      ex.muscles.forEach((m) => { vol[m] = (vol[m] || 0) + it.sets; });
+      (ex.secondary || []).forEach((m) => { vol[m] = (vol[m] || 0) + it.sets * 0.5; });
+    }
+  }
+  return vol;
 }
 
 // Kurzlabels für Wochenübersicht

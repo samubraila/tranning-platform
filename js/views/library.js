@@ -6,7 +6,9 @@ import { backHeader } from '../ui/components.js';
 import { lineChart, bindCharts } from '../ui/charts.js';
 import { EXERCISES, EX_BY_ID, MUSCLES, MUSCLE_GROUPS, EQUIPMENT, ZONES, exerciseGroups } from '../data/exercises.js';
 import { PHASES, WORKOUTS } from '../data/program.js';
-import { exerciseHistory, lastPerformance } from '../logic.js';
+import { exerciseHistory, lastPerformance, replacementFor, setReplacement } from '../logic.js';
+import { rerender } from '../router.js';
+import { toast } from '../ui/components.js';
 
 const filter = { q: '', group: 'alle', equip: 'alle' };
 const LEVEL = ['', 'Einsteiger', 'Fortgeschritten', 'Erfahren'];
@@ -93,6 +95,8 @@ export function exerciseBody(ex, { compact = false } = {}) {
   const last = compact ? null : lastPerformance(ex.id);
   const plan = compact ? [] : usedIn(ex.id);
   const best = hist.length ? Math.max(...hist.map((h) => h.e1rm)) : 0;
+  const replacedBy = compact ? null : replacementFor(ex.id);
+  const replaces = compact ? [] : Object.entries(store.state.settings.replacements || {}).filter(([, to]) => to === ex.id).map(([from]) => EX_BY_ID[from]).filter(Boolean);
 
   return `
     <div class="exercise-hero">
@@ -106,6 +110,8 @@ export function exerciseBody(ex, { compact = false } = {}) {
       </div>
     </div>
 
+    ${replacedBy ? `<div class="callout warn mt-16">${icon('swap', 18)}<div class="grow">In deinem Plan wird diese Übung durch <b>${esc(EX_BY_ID[replacedBy].name)}</b> ersetzt.<div class="mt-8"><button class="btn btn-xs" data-action="lib-unreplace" data-ex="${ex.id}">Ersetzung aufheben</button></div></div></div>` : ''}
+    ${replaces.length ? `<div class="callout accent mt-16">${icon('swap', 18)}<div>Ersetzt in deinem Plan: ${replaces.map((r) => esc(r.name)).join(', ')}</div></div>` : ''}
     <div class="card card-flat mt-16">
       <label class="field"><span class="lbl row" style="gap:6px">${icon('settings', 15)} Meine Geräte-Einstellung</span>
         <textarea class="input" rows="2" data-input="ex-note" data-id="${ex.id}" placeholder="z. B. Sitz 4 · Lehne 2 · Griff mittig">${esc(note)}</textarea>
@@ -158,4 +164,11 @@ onInput('ex-note', (el) => {
   if (v) store.state.exNotes[el.dataset.id] = v;
   else delete store.state.exNotes[el.dataset.id];
   saveNote();
+});
+
+on('lib-unreplace', (el) => {
+  setReplacement(el.dataset.ex, null);
+  store.save();
+  toast('Ersetzung aufgehoben', 'check');
+  rerender();
 });

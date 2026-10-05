@@ -8,13 +8,25 @@ Eine Trainings- und Lernplattform als Web-App fürs Handy: ein periodisierter **
 
 - **Jahresplan (52 Wochen, 6 Phasen):** Fundament → Aufbau → Hypertrophie I → Kraft → Hypertrophie II → Definition & Peak, mit Deload- und Testwochen.
 - **Heute-Ansicht:** zeigt das Training des Tages, die Wochenübersicht, verpasste Einheiten zum Nachholen und Ruhetags-Empfehlungen.
-- **Training tracken:** Gewicht und Wiederholungen pro Satz eintragen, „Vorher“-Werte, Pausen-Timer mit Ton/Vibration, Übungen tauschen, wenn ein Gerät besetzt ist.
+- **Training tracken:** Gewicht und Wiederholungen pro Satz eintragen (mit Dezimalkomma), „Vorher“-Werte, Pausen-Timer mit Ton/Vibration, Countdown für Halteübungen wie Plank, Aufwärmsätze aus dem Arbeitsgewicht berechnet.
+- **Übungen tauschen:** wenn ein Gerät besetzt ist, einmalig – oder dauerhaft für alle Trainings, wenn es das Gerät im eigenen Studio nicht gibt.
 - **Automatische Steigerung (doppelte Progression):** Die App schlägt vor, wann du das Gewicht erhöhen solltest, und erkennt neue Bestleistungen.
 - **62 Übungen** für McFit-Geräte, Kabelzug, Kurz- und Langhanteln: Einstellung, Ausführung, häufige Fehler, Profi-Tipps, Alternativen, Technik-Videos und deine eigene Geräte-Einstellung.
-- **Akademie:** 15 Lektionen (Muskelaufbau, RIR, Technik, McFit-Guide, Periodisierung, Ernährung, Supplements, Schlaf, Cardio, Motivation), jede mit Quiz.
+- **Akademie:** 17 Lektionen (Muskelaufbau, RIR, Fitness-Mythen, Technik, McFit-Guide, Maschinen vs. freie Gewichte, Periodisierung, Ernährung, Supplements, Schlaf, Cardio, Motivation), jede mit Quiz.
 - **Kalorien- und Makro-Rechner** (Mifflin-St-Jeor).
-- **Fortschritt:** Volumen pro Woche, Kraftkurve pro Übung, Körpergewicht, 23 Erfolge, XP und Level, kompletter Verlauf.
+- **Fortschritt:** Volumen pro Woche, Kraftkurve pro Übung, Bestwerte-Liste, Körpergewicht, Körpermaße (Taille, Brust, Oberarm, Oberschenkel), 23 Erfolge, XP und Level, kompletter Verlauf mit Trainingsgefühl und Notizen.
+- **Wochenanalyse:** harte Sätze pro Muskel mit Zielbereich – wie ein Trainer, der dein Volumen prüft.
+- **Kalender-Export:** alle kommenden Trainings mit Erinnerung als .ics-Datei in den Handy-Kalender.
 - **Offline-fähig (PWA):** lässt sich wie eine App auf den Home-Bildschirm legen. Die Daten bleiben nur auf deinem Gerät, und du kannst sie als Backup exportieren und wieder importieren.
+
+## Neu in Version 1.1
+
+- Neue Funktionen: dauerhafte Übungs-Ersetzungen, Aufwärmsätze, Halte-Countdown, Trainingsgefühl & Notizen, Kalender-Export, Bestwerte, Körpermaße, Sätze pro Muskel, 2 neue Lektionen.
+- Testwochen: Die erste Übung ist jetzt ein echter Testsatz (1 × 5, RIR 0–1).
+- Fortgeschrittene können am nächsten Montag mit Phase 2 oder 3 starten (mit Countdown).
+- Robuster: Backups werden geprüft und bereinigt, Fehlerseite statt leerem Bildschirm, Hinweis bei vollem Speicher, „Zurück“ bleibt immer in der App.
+- Bedienung: Timer verdeckt keine Knöpfe mehr, Diagramme per Antippen, Gewichte mit Dezimalkomma, erledigte Sätze bleiben beim Tauschen erhalten.
+- Offline: Der Service Worker löscht nur noch seine eigenen Caches und lädt neue Versionen automatisch.
 
 ## Der Plan im Überblick
 

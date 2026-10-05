@@ -4,7 +4,7 @@ import { esc, greeting, fmtDateLong, fmtDateFull, toISO, daysBetween, mondayOf, 
 import { on, rerender } from '../router.js';
 import { confirmDialog, toast } from '../ui/components.js';
 import { todayPlan, slotSession, dateFor, totals, streakWeeks, levelInfo, weekStatus, planStart, setStartForPhase } from '../logic.js';
-import { WORKOUTS, SHORT, WEEKDAYS, WEEKDAYS_LONG, TOTAL_WEEKS } from '../data/program.js';
+import { WORKOUTS, SHORT, WEEKDAYS, WEEKDAYS_LONG, TOTAL_WEEKS, phaseForWeek } from '../data/program.js';
 import { TIPS, LESSONS } from '../data/academy.js';
 import { phaseChip, kindChip, rirChip, workoutCard } from './shared.js';
 
@@ -121,7 +121,7 @@ export const homeView = {
       main = `<div class="card hero ph-1">
         <div class="eyebrow">Bald geht's los</div>
         <div class="big mt-12">${days}<small> ${days === 1 ? 'Tag' : 'Tage'}</small></div>
-        <p class="muted mt-8">Dein Plan startet am ${esc(fmtDateFull(planStart()))}. Schau dir schon mal die Übungen und die Akademie an.</p>
+        <p class="muted mt-8">Dein Plan startet am ${esc(fmtDateFull(planStart()))}${store.state.settings.startWeek > 1 ? ` mit Woche ${store.state.settings.startWeek} (Phase ${phaseForWeek(store.state.settings.startWeek).num} · ${esc(phaseForWeek(store.state.settings.startWeek).name)})` : ''}. Schau dir schon mal die Übungen und die Akademie an.</p>
         <a class="btn btn-primary btn-block mt-16" href="#/plan">${icon('calendar', 18)} Jahresplan ansehen</a>
       </div>`;
     } else if (week > TOTAL_WEEKS) {

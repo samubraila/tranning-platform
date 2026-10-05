@@ -3,7 +3,7 @@ import { icon } from '../icons.js';
 import { esc } from '../utils.js';
 import { on, go } from '../router.js';
 import { confirmDialog } from '../ui/components.js';
-import { startSession } from '../logic.js';
+import { startSession, personalWorkout } from '../logic.js';
 import { buildWorkout, estimateMinutes, workoutMuscles } from '../data/program.js';
 import { MUSCLES } from '../data/exercises.js';
 
@@ -27,7 +27,7 @@ export function muscleChips(muscles, max = 5, accentFirst = 2) {
 }
 
 export function workoutCard({ workoutId, week, slot }, { eyebrow = '', primary = true } = {}) {
-  const w = buildWorkout(workoutId, week);
+  const w = personalWorkout(workoutId, week);
   const mins = estimateMinutes(w);
   const sets = w.items.reduce((n, it) => n + it.sets, 0);
   const preview = w.items.slice(0, 5).map((it) => `<li>${esc(it.exercise.name)} <span class="faint">· ${it.sets}×${esc(it.reps)}</span></li>`).join('');

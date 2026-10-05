@@ -1,20 +1,24 @@
 import { store } from '../store.js';
 import { icon } from '../icons.js';
-import { esc, fmtDateFull, mondayOf, parseISO, toISO, debounce, weekdayIndex } from '../utils.js';
+import { esc, fmtDateFull, mondayOf, parseISO, toISO, debounce, weekdayIndex, addDays } from '../utils.js';
 import { on, onInput, onChange, rerender, go } from '../router.js';
 import { backHeader, toast, confirmDialog } from '../ui/components.js';
-import { currentWeek, setStartForPhase } from '../logic.js';
-import { PHASES, WEEKDAYS, TOTAL_WEEKS, phaseForWeek } from '../data/program.js';
+import { currentWeek, setStartForPhase, setPlanWeek, weekStartDate, personalWorkout, setReplacement, slotSession } from '../logic.js';
+import { EX_BY_ID } from '../data/exercises.js';
+import { sanitize } from '../store.js';
+import { PHASES, WEEKDAYS, TOTAL_WEEKS, phaseForWeek, weekSchedule, estimateMinutes } from '../data/program.js';
 import { applyTheme } from '../theme.js';
 
 export let installPrompt = null;
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installPrompt = e; });
 
+// Entwurf der Tagesauswahl – wird erst übernommen, wenn genau die richtige Anzahl gewählt ist
+const dayDraft = {};
 function dayPicker(key, count) {
-  const days = store.state.settings[key];
+  const days = dayDraft[key] || store.state.settings[key];
   return `<div class="daypick" role="group" aria-label="${count} Trainingstage">${WEEKDAYS.map((d, i) =>
     `<button class="${days.includes(i) ? 'on' : ''}" data-action="pick-day" data-key="${key}" data-count="${count}" data-d="${i}" aria-pressed="${days.includes(i)}">${d}</button>`).join('')}</div>
-    <div class="tiny faint mt-8">${days.length === count ? `Reihenfolge: ${days.map((d) => WEEKDAYS[d]).join(' · ')}` : `Wähle genau ${count} Tage (${days.length}/${count})`}</div>`;
+    <div class="tiny mt-8 ${days.length === count ? 'faint' : 'warn-text'}">${days.length === count ? `Reihenfolge: ${days.map((d) => WEEKDAYS[d]).join(' · ')}` : `Wähle noch ${count - days.length} Tag${count - days.length > 1 ? 'e' : ''} – gespeichert wird erst bei ${count} Tagen (aktuell gilt: ${store.state.settings[key].map((d) => WEEKDAYS[d]).join(' · ')})`}</div>`;
 }
 
 function toggle(key, label, sub) {
@@ -27,6 +31,7 @@ function toggle(key, label, sub) {
 export const settingsView = {
   name: 'settings',
   tab: 'home',
+  unmount() { for (const k of Object.keys(dayDraft)) delete dayDraft[k]; },
   render() {
     const s = store.state.settings;
     const cw = currentWeek();
@@ -42,14 +47,14 @@ export const settingsView = {
         <div class="section-head"><h2 class="h">Plan</h2></div>
         <div class="card stack">
           <div class="callout accent">${icon('calendar', 20)}<div>${cw === 0 ? `Dein Plan startet am <b>${esc(fmtDateFull(parseISO(s.startDate)))}</b>.` : cw > TOTAL_WEEKS ? 'Dein Trainingsjahr ist abgeschlossen.' : `Du bist in <b>Woche ${cw}</b> · Phase ${phaseForWeek(cw).num} (${esc(phaseForWeek(cw).name)}).`}</div></div>
-          <label class="field"><span class="lbl">Startdatum (Woche 1 beginnt am Montag dieser Woche)</span><input class="input" type="date" value="${s.startDate}" data-change="start-date" /></label>
+          <label class="field"><span class="lbl">Woche ${s.startWeek} beginnt am (Montag)</span><input class="input" type="date" value="${esc(s.startDate)}" data-change="start-date" /></label>
           <label class="field"><span class="lbl">Aktuelle Woche direkt setzen</span>
             <select class="input" data-change="set-week">
               <option value="">– auswählen –</option>
               ${PHASES.map((p) => `<optgroup label="Phase ${p.num} · ${esc(p.name)}">${Array.from({ length: p.weeks[1] - p.weeks[0] + 1 }, (_, i) => p.weeks[0] + i).map((w) => `<option value="${w}" ${w === cw ? 'selected' : ''}>Woche ${w}</option>`).join('')}</optgroup>`).join('')}
             </select>
           </label>
-          <div class="tiny faint">Damit verschiebst du den Plan so, dass diese Woche der gewählten Woche entspricht. Deine Trainings bleiben gespeichert.</div>
+          <div class="tiny faint">Damit verschiebst du den Plan so, dass diese Woche der gewählten Woche entspricht – z. B. um eine Woche nach Krankheit oder Urlaub zu wiederholen. Deine Trainings bleiben gespeichert.</div>
         </div>
       </div>
 
@@ -59,6 +64,24 @@ export const settingsView = {
           <div><div class="bold">Phasen mit 3 Trainings</div><div class="small muted mb-8">Phase 1, 2 & 6</div><div class="mt-8">${dayPicker('days3', 3)}</div></div>
           <div><div class="bold">Phasen mit 4 Trainings</div><div class="small muted">Phase 3, 4 & 5</div><div class="mt-8">${dayPicker('days4', 4)}</div></div>
           <div class="callout">${icon('bulb', 18)}<div class="small">Tipp: Zwischen zwei Trainings für dieselbe Muskelgruppe sollten 48 Stunden liegen. Bewährt: Mo/Mi/Fr bzw. Mo/Di/Do/Fr.</div></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head"><h2 class="h">Ersetzte Übungen</h2></div>
+        <div class="card">${replacementList()}</div>
+      </div>
+
+      <div class="section">
+        <div class="section-head"><h2 class="h">Kalender & Erinnerungen</h2></div>
+        <div class="card stack">
+          <p class="small muted">Trag deine kommenden Trainings mit Erinnerung (1 Stunde vorher) in den Handy-Kalender ein – so wird Training zur festen Gewohnheit.</p>
+          <div class="grid-2">
+            <label class="field"><span class="lbl">Uhrzeit</span><input class="input" type="time" id="ics-time" value="18:00" /></label>
+            <label class="field"><span class="lbl">Zeitraum</span><select class="input" id="ics-weeks"><option value="4">Nächste 4 Wochen</option><option value="12" selected>Nächste 12 Wochen</option><option value="52">Bis Planende</option></select></label>
+          </div>
+          <button class="btn btn-outline btn-block" data-action="ics-export">${icon('calendar', 18)} Termine exportieren (.ics)</button>
+          <div class="tiny faint">iPhone: Datei öffnen → „Alle hinzufügen“. Android: mit Google Kalender öffnen. Nach Änderungen am Plan einfach neu exportieren.</div>
         </div>
       </div>
 
@@ -99,11 +122,95 @@ export const settingsView = {
 
       <div class="section center">
         <div class="logo" style="justify-content:center"><span class="mark">${icon('dumbbell', 20, 'accent-ic')}</span>FORGE<em>52</em></div>
-        <p class="tiny faint mt-8">Version 1.0 · Dein 52-Wochen-Trainingsplan für McFit</p>
+        <p class="tiny faint mt-8">Version 1.1 · Dein 52-Wochen-Trainingsplan für McFit</p>
         <p class="tiny faint mt-8" style="max-width:420px;margin-left:auto;margin-right:auto">Hinweis: Die Inhalte ersetzen keine ärztliche Beratung. Bei Vorerkrankungen oder Beschwerden vor dem Training ärztlich abklären. McFit ist eine Marke der RSG Group; diese App ist ein unabhängiges Projekt.</p>
       </div>`;
   },
 };
+
+function replacementList() {
+  const list = Object.entries(store.state.settings.replacements || {}).filter(([a, b]) => EX_BY_ID[a] && EX_BY_ID[b]);
+  if (!list.length) return `<p class="small muted">Noch keine. Im Training kannst du unter „Tauschen“ eine Übung dauerhaft ersetzen – z. B. wenn es ein Gerät in deinem Studio nicht gibt.</p>`;
+  return `<div class="list">${list.map(([from, to]) => `<div class="item">
+      <div class="tile-ic">${icon('swap', 18)}</div>
+      <div class="grow"><div class="title">${esc(EX_BY_ID[to].name)}</div><div class="sub">statt ${esc(EX_BY_ID[from].name)}</div></div>
+      <button class="btn btn-xs" data-action="unreplace" data-ex="${esc(from)}">Aufheben</button>
+    </div>`).join('')}</div>`;
+}
+
+on('unreplace', (el) => {
+  setReplacement(el.dataset.ex, null);
+  store.save();
+  toast(`${EX_BY_ID[el.dataset.ex]?.name || 'Übung'} wieder wie geplant`, 'check');
+  rerender();
+});
+
+// ───── Kalender-Export (.ics) ─────
+const pad = (n) => String(n).padStart(2, '0');
+const icsTime = (d) => `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
+const icsText = (t) => String(t).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+// Zeilen nach RFC 5545 auf max. 75 Zeichen umbrechen (Folgezeilen beginnen mit Leerzeichen)
+function icsFold(line) {
+  const out = [];
+  let rest = line;
+  while (rest.length > 70) { out.push(rest.slice(0, 70)); rest = ' ' + rest.slice(70); }
+  out.push(rest);
+  return out.join('\r\n');
+}
+
+on('ics-export', () => {
+  const [hh, mm] = (document.getElementById('ics-time')?.value || '18:00').split(':').map(Number);
+  const weeks = Number(document.getElementById('ics-weeks')?.value) || 12;
+  const cw = Math.max(1, currentWeek());
+  if (cw > TOTAL_WEEKS) { toast('Dein Trainingsjahr ist abgeschlossen', 'info'); return; }
+  const today = toISO(new Date());
+  const appUrl = location.origin + location.pathname;
+  const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//FORGE52//Trainingsplan//DE', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'X-WR-CALNAME:FORGE52 Training'];
+  let n = 0;
+  for (let w = cw; w <= Math.min(TOTAL_WEEKS, cw + weeks - 1); w++) {
+    for (const x of weekSchedule(w, store.state.settings)) {
+      const day = addDays(weekStartDate(w), x.day);
+      if (toISO(day) < today || slotSession(w, x.slot)) continue;
+      const wo = personalWorkout(x.workoutId, w);
+      const start = new Date(day.getFullYear(), day.getMonth(), day.getDate(), hh || 0, mm || 0);
+      const end = new Date(start.getTime() + estimateMinutes(wo) * 60000);
+      const desc = [
+        `Woche ${w} · Phase ${wo.info.phase.num} ${wo.info.phase.name}`,
+        ...wo.items.map((it) => `• ${it.exercise.name}: ${it.sets} × ${it.reps}`),
+        '',
+        appUrl,
+      ].join('\n');
+      lines.push(
+        'BEGIN:VEVENT',
+        `UID:forge52-${toISO(day)}-${x.slot}@forge52`,
+        `DTSTAMP:${stamp}`,
+        `DTSTART:${icsTime(start)}`,
+        `DTEND:${icsTime(end)}`,
+        `SUMMARY:${icsText(`FORGE52 · ${wo.name}`)}`,
+        `DESCRIPTION:${icsText(desc)}`,
+        `URL:${appUrl}`,
+        'BEGIN:VALARM',
+        'ACTION:DISPLAY',
+        'TRIGGER:-PT60M',
+        `DESCRIPTION:${icsText(`Training in 1 Stunde: ${wo.name}`)}`,
+        'END:VALARM',
+        'END:VEVENT',
+      );
+      n++;
+    }
+  }
+  lines.push('END:VCALENDAR');
+  if (!n) { toast('Keine offenen Trainings im gewählten Zeitraum', 'info'); return; }
+  const blob = new Blob([lines.map(icsFold).join('\r\n') + '\r\n'], { type: 'text/calendar;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'forge52-training.ics';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
+  toast(`${n} Termine exportiert`, 'calendar');
+});
 
 const saveName = debounce(() => store.save(), 400);
 onInput('profile-name', (el) => { store.state.profile.name = el.value.trim(); saveName(); });
@@ -119,9 +226,7 @@ onChange('start-date', (el) => {
 onChange('set-week', (el) => {
   const w = parseInt(el.value, 10);
   if (!w) return;
-  const monday = mondayOf(new Date());
-  monday.setDate(monday.getDate() - (w - 1) * 7);
-  store.state.settings.startDate = toISO(monday);
+  setPlanWeek(w, mondayOf(new Date()));
   store.save();
   toast(`Du bist jetzt in Woche ${w}`, 'calendar');
   rerender();
@@ -131,13 +236,19 @@ on('pick-day', (el) => {
   const key = el.dataset.key;
   const count = +el.dataset.count;
   const d = +el.dataset.d;
-  let days = [...store.state.settings[key]];
+  let days = [...(dayDraft[key] || store.state.settings[key])];
   if (days.includes(d)) days = days.filter((x) => x !== d);
   else if (days.length < count) days.push(d);
   else { toast(`Maximal ${count} Tage – entferne zuerst einen Tag`, 'info'); return; }
   days.sort((a, b) => a - b);
-  store.state.settings[key] = days;
-  if (days.length === count) store.save();
+  if (days.length === count) {
+    delete dayDraft[key];
+    store.state.settings[key] = days;
+    store.save();
+    toast(`Trainingstage gespeichert: ${days.map((x) => WEEKDAYS[x]).join(' · ')}`, 'calendar');
+  } else {
+    dayDraft[key] = days;
+  }
   rerender();
 });
 
@@ -178,18 +289,24 @@ onChange('import-file', async (el) => {
   const file = el.files?.[0];
   if (!file) return;
   try {
+    if (file.size > 5 * 1024 * 1024) throw new Error('size');
     const data = JSON.parse(await file.text());
-    if (!data || !Array.isArray(data.sessions) || !data.settings) throw new Error('format');
-    const ok = await confirmDialog({ title: 'Backup laden?', text: `${data.sessions.length} Trainings gefunden. Deine aktuellen Daten auf diesem Gerät werden ersetzt.`, ok: 'Laden' });
+    if (!data || typeof data !== 'object' || Array.isArray(data) || !Array.isArray(data.sessions) || typeof data.settings !== 'object' || !data.settings) throw new Error('format');
+    const clean = sanitize(data);
+    const dropped = data.sessions.length - clean.sessions.length;
+    const ok = await confirmDialog({
+      title: 'Backup laden?',
+      text: `${clean.sessions.length} Trainings gefunden${dropped > 0 ? ` (${dropped} ungültige Einträge werden ignoriert)` : ''}. Deine aktuellen Daten auf diesem Gerät werden ersetzt.`,
+      ok: 'Laden',
+    });
     if (!ok) return;
-    delete data.app;
-    delete data.exportedAt;
-    store.replace(data);
+    const prev = store.state;
+    if (!store.replace(clean)) { store.state = prev; throw new Error('save'); }
     applyTheme();
     toast('Backup geladen', 'check');
     go('#/');
   } catch {
-    toast('Datei konnte nicht gelesen werden', 'alert');
+    toast('Das ist kein gültiges FORGE52-Backup – deine Daten bleiben unverändert.', 'alert', 4200);
   } finally {
     el.value = '';
   }
@@ -215,7 +332,7 @@ const LEVELS = [
 ];
 
 function dots(n) {
-  return `<div class="dots">${[0, 1, 2].map((i) => `<span class="${i === n ? 'on' : ''}"></span>`).join('')}</div>`;
+  return `<div class="dots" aria-label="Schritt ${n + 1} von 2">${[0, 1].map((i) => `<span class="${i === n ? 'on' : ''}"></span>`).join('')}</div>`;
 }
 
 export const onboardingView = {

@@ -1,4 +1,4 @@
-// Pausen-Timer mit Ton & Vibration. Läuft über Zeitstempel, damit er auch im Hintergrund korrekt bleibt.
+// Pausen- und Halte-Timer mit Ton & Vibration. Läuft über Zeitstempel, damit er auch im Hintergrund korrekt bleibt.
 import { store } from '../store.js';
 import { fmtClock } from '../utils.js';
 import { icon } from '../icons.js';
@@ -9,6 +9,8 @@ let iv = null;
 let finished = false;
 let audioCtx = null;
 let label = 'Pause';
+let mode = 'rest'; // 'rest' = Satzpause, 'hold' = Halteübung (z. B. Plank)
+let onDone = null;
 
 export function unlockAudio() {
   try {
@@ -40,12 +42,19 @@ const bar = () => document.getElementById('timerbar');
 
 function render() {
   const el = bar();
-  if (!el) return;
+  if (!el || !iv) return;
   const left = (endAt - Date.now()) / 1000;
   if (left <= 0 && !finished) {
     finished = true;
     beep();
     if (store.state.settings.vibrate && navigator.vibrate) navigator.vibrate([220, 100, 220]);
+    const cb = onDone;
+    onDone = null;
+    if (mode === 'hold') {
+      stopTimer();
+      cb?.();
+      return;
+    }
     setTimeout(() => { if (finished) stopTimer(); }, 4000);
   }
   el.classList.toggle('done', finished);
@@ -54,9 +63,11 @@ function render() {
   el.querySelector('.bar').style.width = `${finished ? 100 : Math.max(0, 100 - (left / total) * 100)}%`;
 }
 
-export function startTimer(seconds, lbl = 'Pause') {
+export function startTimer(seconds, lbl = 'Pause', opts = {}) {
   if (!seconds || seconds < 5) return;
   label = lbl;
+  mode = opts.mode || 'rest';
+  onDone = opts.onDone || null;
   const el = bar();
   total = seconds;
   endAt = Date.now() + seconds * 1000;
@@ -64,11 +75,13 @@ export function startTimer(seconds, lbl = 'Pause') {
   el.innerHTML = `
     <div><div class="lbl">${label}</div><div class="t">${fmtClock(seconds)}</div></div>
     <div class="grow"></div>
-    <button class="tb" data-timer="-15" aria-label="15 Sekunden weniger">−15</button>
-    <button class="tb" data-timer="15" aria-label="15 Sekunden mehr">+15</button>
-    <button class="tb" data-timer="stop" aria-label="Pause beenden">${icon('skip', 18)}</button>
+    ${mode === 'rest' ? `<button class="tb" data-timer="-15" aria-label="15 Sekunden weniger">−15</button>
+    <button class="tb" data-timer="15" aria-label="15 Sekunden mehr">+15</button>` : ''}
+    <button class="tb" data-timer="stop" aria-label="${mode === 'hold' ? 'Halten abbrechen' : 'Pause beenden'}">${icon(mode === 'hold' ? 'x' : 'skip', 18)}</button>
     <div class="bar"></div>`;
+  el.classList.toggle('hold', mode === 'hold');
   el.hidden = false;
+  document.body.classList.add('timer-on');
   clearInterval(iv);
   iv = setInterval(render, 250);
   render();
@@ -78,8 +91,10 @@ export function stopTimer() {
   clearInterval(iv);
   iv = null;
   finished = false;
+  onDone = null;
   const el = bar();
-  if (el) { el.hidden = true; el.innerHTML = ''; }
+  if (el) { el.hidden = true; el.innerHTML = ''; el.classList.remove('done', 'hold'); }
+  document.body.classList.remove('timer-on');
 }
 
 export function timerRunning() {
