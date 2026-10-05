@@ -365,7 +365,7 @@ export function weekInfo(week) {
     if (w === TOTAL_WEEKS) notes.push('Das letzte Training des Jahres: Schau dir deinen Fortschritt an und plane dein nächstes Jahr.');
   }
   if (cfg.kind === 'test') {
-    notes.push('Testwoche: Bei der ersten Übung jedes Trainings arbeitest du dich über Aufwärmsätze an ein sauberes 5-Wiederholungs-Maximum heran (1 Testsatz, RIR 0–1). Alle anderen Übungen trainierst du normal mit RIR 2.');
+    notes.push('Testwoche: Bei der ersten Übung jedes Trainings arbeitest du dich über Aufwärmsätze an ein sauberes 5-Wiederholungs-Maximum heran (1 Testsatz, RIR 1 – also eine saubere Wiederholung im Tank, kein Muskelversagen). Alle anderen Übungen trainierst du normal mit RIR 2.');
   }
   if (cfg.note) notes.push(cfg.note);
   return {
@@ -398,9 +398,9 @@ export function buildWorkout(workoutId, week) {
     if (info.kind === 'test' && i === 0 && !it.finisher) {
       const safety = ex.equipment === 'lh' ? ' Ohne Sicherungspartner an der Multipresse testen.' : '';
       return {
-        ...it, sets: 1, reps: '5', rest: 240, rir: '0–1', exercise: ex,
+        ...it, sets: 1, reps: '5', rest: 240, rir: '1', exercise: ex,
         tags: ['Test: 5-Wdh-Max'],
-        note: `Aufwärmen: ca. 50 % × 8, 70 % × 5, 85 % × 2, 92 % × 1 – dann 1 Satz mit dem schwersten Gewicht für 5 saubere Wiederholungen.${safety}`,
+        note: `Aufwärmen: ca. 50 % × 8, 70 % × 5, 85 % × 2, 92 % × 1 – dann 1 Satz mit dem schwersten Gewicht für 5 saubere Wiederholungen. Bricht die Technik ein, ist der Test beendet.${safety}`,
       };
     }
     return { ...it, sets, rir: it.finisher ? null : info.rir, tags, exercise: ex };

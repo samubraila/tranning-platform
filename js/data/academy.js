@@ -257,7 +257,7 @@ export const LESSONS = [
     intro: 'Ob du zunimmst, abnimmst oder dein Gewicht hältst, entscheidet die Energiebilanz: Kalorien rein gegen Kalorien raus.',
     sections: [
       { h: 'Drei Ziele, drei Strategien', list: [
-        'Muskelaufbau („Lean Bulk“): ca. 200–300 kcal Überschuss pro Tag. Ziel: ca. 0,25–0,5 % Körpergewicht Zunahme pro Woche.',
+        'Muskelaufbau („Lean Bulk“): ca. 200–300 kcal Überschuss pro Tag. Ziel: ca. 0,25 % Körpergewicht Zunahme pro Woche (bei 80 kg ≈ 0,2 kg pro Woche bzw. 0,8 kg pro Monat) – Einsteiger etwas mehr, Fortgeschrittene weniger.',
         'Fettabbau („Diät“): ca. 300–500 kcal Defizit. Ziel: ca. 0,5–1 % Körpergewicht pro Woche.',
         'Rekomposition: Erhaltungskalorien + viel Eiweiß – funktioniert gut für Einsteiger und Wiedereinsteiger.',
       ] },
@@ -298,7 +298,7 @@ export const LESSONS = [
       { h: 'Gut belegt', list: [
         'Kreatin-Monohydrat: 3–5 g täglich, jeden Tag, zu einer beliebigen Uhrzeit. Mehr Kraft und mehr Muskelaufbau. Eine Ladephase ist nicht nötig.',
         'Proteinpulver: kein Muss, aber praktisch, um dein Eiweißziel zu erreichen.',
-        'Koffein: 1–3 mg pro kg Körpergewicht ca. 30–60 Min vor dem Training steigert die Leistung (z. B. 1–2 Tassen Kaffee). Nicht spät abends.',
+        'Koffein: ca. 2–3 mg pro kg Körpergewicht 30–60 Min vor dem Training steigert die Leistung (bei 80 kg ≈ 2 Tassen Kaffee). Mehr bringt kaum mehr, stört aber den Schlaf – nicht spät abends.',
       ] },
       { h: 'Je nach Situation', list: [
         'Vitamin D: in den Wintermonaten oft sinnvoll – idealerweise nach Blutwert und ärztlicher Absprache.',

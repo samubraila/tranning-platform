@@ -1,6 +1,6 @@
 // FORGE52 Service Worker – macht die App offline nutzbar.
 // Bei Änderungen an Dateien die Version erhöhen, damit Handys die neue Version laden.
-const VERSION = 'forge52-v1.1.1';
+const VERSION = 'forge52-v1.1.2';
 const PREFIX = 'forge52-';
 const ASSETS = [
   './',
